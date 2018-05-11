@@ -51,7 +51,7 @@
 #define  KEY_GESTURE_V                          GESTURE_V
 #define  KEY_GESTURE_C                          GESTURE_C
 #define  KEY_GESTURE_Z                          GESTURE_Z
-#define  KEY_DOUBLECLICK                        GESTURE_DOUBLECLICK
+#define  KEY_DOUBLECLICK                        KEY_POWER
 
 #define GESTURE_LEFT_EVENT                      0x20
 #define GESTURE_RIGHT_EVENT                     0x21
@@ -107,6 +107,9 @@ static ssize_t fts_gesture_store(struct device *dev, struct device_attribute *at
 static ssize_t fts_gesture_buf_show(struct device *dev, struct device_attribute *attr, char *buf);
 static ssize_t fts_gesture_buf_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
 
+static ssize_t fts_gesture_dtwake_show(struct device *dev, struct device_attribute *attr, char *buf);
+static ssize_t fts_gesture_dtwake_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count);
+
 static const struct file_operations fts_gesture_proc_fops = {
     .owner = THIS_MODULE,
     .read = fts_gesture_mode_get_proc,
@@ -119,14 +122,18 @@ static const struct file_operations fts_gesture_proc_fops = {
  *
  */
 static DEVICE_ATTR(fts_gesture_mode, S_IRUGO | S_IWUSR, fts_gesture_show, fts_gesture_store);
+
 /*
  *   read example: cat  fts_gesture_buf        ---read gesture buf
  */
 static DEVICE_ATTR(fts_gesture_buf, S_IRUGO | S_IWUSR, fts_gesture_buf_show, fts_gesture_buf_store);
-static struct attribute *fts_gesture_mode_attrs[] = {
 
+static DEVICE_ATTR(fts_gesture_dtwake, S_IRUGO | S_IWUSR, fts_gesture_dtwake_show, fts_gesture_dtwake_store);
+
+static struct attribute *fts_gesture_mode_attrs[] = {
     &dev_attr_fts_gesture_mode.attr,
     &dev_attr_fts_gesture_buf.attr,
+    &dev_attr_fts_gesture_dtwake.attr,
     NULL,
 };
 
@@ -134,8 +141,7 @@ static struct attribute_group fts_gesture_group = {
     .attrs = fts_gesture_mode_attrs,
 };
 
-static ssize_t fts_gesture_mode_get_proc(struct file *file, char __user *buffer,
-                                         size_t size, loff_t *ppos)
+static ssize_t fts_gesture_mode_get_proc(struct file *file, char __user *buffer, size_t size, loff_t *ppos)
 {
     char *ptr = buffer;
 
@@ -256,6 +262,20 @@ static ssize_t fts_gesture_buf_store(struct device *dev, struct device_attribute
 {
     /* place holder for future use */
     return -EPERM;
+}
+
+static ssize_t fts_gesture_dtwake_show(struct device *dev, struct device_attribute *attr, char *buf) {
+    int count;
+
+    mutex_lock(&fts_input_dev->mutex);
+    count = sprintf(buf, "%s\n", fts_gesture_data.mode ? "1" : "0");
+    mutex_unlock(&fts_input_dev->mutex);
+
+    return count;
+}
+
+static ssize_t fts_gesture_dtwake_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count) {
+    return fts_gesture_store(dev, attr, buf, count);
 }
 
 /*****************************************************************************
@@ -443,13 +463,14 @@ static void fts_check_gesture(struct input_dev *input_dev, int gesture_id)
         break;
     }
     FTS_DEBUG("envp[0]: %s", envp[0]);
+    
     /* report event key */
     if (gesture != -1)
     {
-       input_report_key(input_dev, gesture, 1);
-       input_sync(input_dev);
-       input_report_key(input_dev, gesture, 0);
-       input_sync(input_dev);
+        input_report_key(input_dev, gesture, 1);
+        input_sync(input_dev);
+        input_report_key(input_dev, gesture, 0);
+        input_sync(input_dev);
     }
 
     envp[1] = NULL;
