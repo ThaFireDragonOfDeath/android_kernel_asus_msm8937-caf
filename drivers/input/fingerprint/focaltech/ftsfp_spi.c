@@ -553,30 +553,38 @@ static int ftsfp_open (struct inode *inode, struct file *filp)
 
 static int fp_get_io_resource(void)
 {
-	int ret;
-
-	struct ftsfp_dev *dev;
-	dev = &g_ftsfp_dev;
+	int ret,i;
+        int my_count = 0;
 	if (ftsfp_parse_dts (&g_ftsfp_dev))
 	{
 		ftsfp_dbg("ftsfp_parse_dts error...\n");
-	       return -1;
+		return -1;
 	}
 
 	g_ftsfp_dev.irq = ftsfp_irq_num (&g_ftsfp_dev);
-	ret = request_threaded_irq (g_ftsfp_dev.irq, NULL, ftsfp_irq,
-	                            IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-	                            "ftsfp", &g_ftsfp_dev);
-    ftsfp_dbg("ftsfp_probe: g_ftsfp_dev.irq_enabled = %d\n", g_ftsfp_dev.irq_enabled);
 
-	if (!ret)
+	for(i = 0; i < 3; i++)
 	{
-		g_ftsfp_dev.irq_enabled = 1;
-        enable_irq_wake (g_ftsfp_dev.irq);
-        ftsfp_disable_irq (&g_ftsfp_dev);
-	    ftsfp_dbg("ftsfp request_threaded_irq success!\n");
+          
+		ret = request_threaded_irq (g_ftsfp_dev.irq, NULL, ftsfp_irq,IRQF_TRIGGER_RISING | IRQF_ONESHOT,"ftsfp", &g_ftsfp_dev);
+		ftsfp_dbg("ftsfp_probe: g_ftsfp_dev.irq_enabled = %d\n", g_ftsfp_dev.irq_enabled);
+
+		if(!ret)
+		{
+			g_ftsfp_dev.irq_enabled = 1;
+			enable_irq_wake (g_ftsfp_dev.irq);
+			ftsfp_disable_irq (&g_ftsfp_dev);
+			ftsfp_dbg("ftsfp request_threaded_irq success!\n");
+                        break;
+		}
+		else
+			my_count++;
+
 	}
-	wake_lock_init(&dev->fts_wlock, WAKE_LOCK_SUSPEND, "focalfp_irq_wakelock");
+        
+	if(my_count ==  3)
+		ftsfp_dbg("ftsfp request_threaded_irq failed!\n");
+
 	ftsfp_dbg("ftsfp fp_get_io_resource  end__ !\n");
 	return 0;
 }
@@ -913,6 +921,8 @@ static int ftsfp_probe (
 #endif
 
     }
+
+    wake_lock_init(&ftsfp_dev->fts_wlock, WAKE_LOCK_SUSPEND, "focalfp_irq_wakelock");
 
     return status;
 
