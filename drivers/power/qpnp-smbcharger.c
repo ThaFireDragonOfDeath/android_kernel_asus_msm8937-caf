@@ -5821,7 +5821,7 @@ static int smbchg_prepare_for_pulsing_lite(struct smbchg_chip *chip)
 	rc = rerun_apsd(chip);
 	if (rc) {
 		pr_err("APSD rerun failed\n");
-		goto out;
+		//goto out;
 	}
 
 	pr_smb(PR_MISC, "Enable AICL\n");
@@ -8486,7 +8486,7 @@ static int smbchg_check_chg_version(struct smbchg_chip *chip)
 		chip->schg_version = QPNP_SCHG_LITE;
 		/* PMI8937/PMI8940 doesn't support HVDCP */
 		if ((pmic_rev_id->pmic_subtype == PMI8937)
-			|| (pmic_rev_id->pmic_subtype == PMI8940))
+			|| (pmic_rev_id->pmic_subtype == PMI8940) || (pmic_rev_id->pmic_subtype == PMI8950))
 			chip->hvdcp_not_supported = true;
 		break;
 	case PMI8996:
